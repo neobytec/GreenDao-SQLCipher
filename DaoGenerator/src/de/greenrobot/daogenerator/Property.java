@@ -102,9 +102,14 @@ public class Property {
             return this;
         }
 
+        public PropertyBuilder defaultValue(String defaultValue) {
+        	property.defaultValue = defaultValue;        		
+        	return this;
+        }
+        
         public Property getProperty() {
             return property;
-        }
+        }        
     }
 
     private final Schema schema;
@@ -122,6 +127,8 @@ public class Property {
 
     private boolean unique;
     private boolean notNull;
+    
+    private String defaultValue = "";
 
     /** Initialized in 2nd pass */
     private String constraints;
@@ -175,6 +182,10 @@ public class Property {
 
     public boolean isNotNull() {
         return notNull;
+    }
+    
+    public String getDefaultValue() {
+    	return defaultValue;
     }
 
     public String getJavaType() {
