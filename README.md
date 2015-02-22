@@ -13,3 +13,10 @@ Project description
 ------------------------
 
 This project is based on the greenDao code on github and rewrite, maybe is not the latest code. I have rewrite DaoCore and DaoGenerator code,Let it support SQLCipher. You can learn it from DaoExample, good luck to you.
+
+
+Neobytec Changes
+------------------------
++ Added method in Property class to set default value
++ Modified templates to include unciphered database copy functionality
++ Added foreign keys constraints in table creation and modified the DaoSession template to set foreign keys on by default
