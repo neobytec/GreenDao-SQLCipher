@@ -21,12 +21,8 @@ along with greenDAO Generator.  If not, see <http://www.gnu.org/licenses/>.
 <#assign toCursorType = {"Boolean":"Short", "Byte":"Short", "Short":"Short", "Int":"Int", "Long":"Long", "Float":"Float", "Double":"Double", "String":"String", "ByteArray":"Blob", "Date": "Long"  } />
 package ${entity.javaPackageDao};
 
-<#if entity.toOneRelations?has_content || entity.incomingToManyRelations?has_content>
 import java.util.List;
-</#if>
-<#if entity.toOneRelations?has_content>
 import java.util.ArrayList;
-</#if>
 import android.database.Cursor;
 import net.sqlcipher.database.SQLiteDatabase;
 import net.sqlcipher.database.SQLiteStatement;
@@ -97,23 +93,64 @@ public class ${entity.classNameDao} extends AbstractDao<${entity.className}, ${e
 <#if !entity.skipTableCreation>
     /** Creates the underlying database table. */
     public static void createTable(SQLiteDatabase db, boolean ifNotExists) {
-        String constraint = ifNotExists? "IF NOT EXISTS ": "";
-        db.execSQL("CREATE TABLE " + constraint + "'${entity.tableName}' (" + //
+    	List<String> listSQL = getCreateTableSQL(ifNotExists);
+    	
+    	db.beginTransaction();
+    	for (String sql : listSQL) {
+    		db.execSQL(sql);	
+    	}    
+    	db.setTransactionSuccessful();
+        db.endTransaction();
+    }
+    
+    /** Creates underlying unencrypted database table */
+    public static void createTable(android.database.sqlite.SQLiteDatabase db, boolean ifNotExists) {
+    	List<String> listSQL = getCreateTableSQL(ifNotExists);
+    	
+    	db.beginTransaction();
+    	for (String sql : listSQL) {
+    		db.execSQL(sql);	
+    	}    
+    	db.setTransactionSuccessful();
+        db.endTransaction();
+    }
+
+	public static List<String> getCreateTableSQL(boolean ifNotExists) {
+		String constraint = ifNotExists? "IF NOT EXISTS ": "";
+		
+		List<String> listSQL = new ArrayList<String>();
+		
+		String tableSQL = "CREATE TABLE " + constraint + "'${entity.tableName}' (" + //
 <#list entity.propertiesColumns as property>
-                "'${property.columnName}' ${property.columnType}<#if property.constraints??> ${property.constraints} </#if><#if property_has_next>," +<#else>);");</#if> // ${property_index}: ${property.propertyName}
+                "'${property.columnName}' ${property.columnType}<#if property.constraints??> ${property.constraints} </#if><#if property.defaultValue?has_content> DEFAULT ${property.defaultValue}</#if><#if property_has_next>," + // ${property_index}: ${property.propertyName}<#else><#if entity.toOneRelations?has_content>," +
+                <#list entity.toOneRelations as toOneRelation>
+				" FOREIGN KEY (<#list toOneRelation.fkProperties as fkProperty>'${fkProperty.columnName}'<#if fkProperty_has_next>,</#if></#list>) REFERENCES ${toOneRelation.targetEntity.tableName} ('${toOneRelation.targetEntity.pkProperty.columnName}')<#if toOneRelation_has_next>," +<#else>);";</#if>
+				</#list>
+                <#else>);";</#if></#if>
 </#list>
-<#if entity.indexes?has_content >
+		
+		listSQL.add(tableSQL);
+		
+		<#if entity.indexes?has_content >
         // Add Indexes
-<#list entity.indexes as index>
-        db.execSQL("CREATE <#if index.unique>UNIQUE </#if>INDEX " + constraint + "${index.name} ON ${entity.tableName}" +
+		<#list entity.indexes as index>
+        listSQL.add("CREATE <#if index.unique>UNIQUE </#if>INDEX " + constraint + "${index.name} ON ${entity.tableName}" +
                 " (<#list index.properties 
 as property>${property.columnName}<#if property_has_next>,</#if></#list>);");
-</#list>
-</#if>         
-    }
+		</#list>
+		</#if>
+		
+		return listSQL;
+	}
 
     /** Drops the underlying database table. */
     public static void dropTable(SQLiteDatabase db, boolean ifExists) {
+        String sql = "DROP TABLE " + (ifExists ? "IF EXISTS " : "") + "'${entity.tableName}'";
+        db.execSQL(sql);
+    }
+    
+    /** Drops the underlying unencrypted database table. */
+    public static void dropTable(android.database.sqlite.SQLiteDatabase db, boolean ifExists) {
         String sql = "DROP TABLE " + (ifExists ? "IF EXISTS " : "") + "'${entity.tableName}'";
         db.execSQL(sql);
     }
@@ -156,6 +193,63 @@ as property>${property.columnName}<#if property_has_next>,</#if></#list>);");
         }
 </#if>
 </#list>
+    }
+    
+    /** Bind stmt for copy **/
+    public static void bindValues(android.database.sqlite.SQLiteStatement stmt, ${entity.className} entity) {
+        stmt.clearBindings();
+<#list entity.properties as property>
+<#if property.notNull || entity.protobuf>
+<#if entity.protobuf>
+        if(entity.has${property.propertyName?cap_first}()) {
+    </#if>        stmt.bind${toBindType[property.propertyType]}(${property_index + 1}, entity.get${property.propertyName?cap_first}()<#if
+     property.propertyType == "Boolean"> ? 1l: 0l</#if><#if property.propertyType == "Date">.getTime()</#if>);
+<#if entity.protobuf>
+        }
+</#if>
+<#else> <#-- nullable, non-protobuff -->
+        ${property.javaType} ${property.propertyName} = entity.get${property.propertyName?cap_first}();
+        if (${property.propertyName} != null) {
+            stmt.bind${toBindType[property.propertyType]}(${property_index + 1}, ${property.propertyName}<#if
+ property.propertyType == "Boolean"> ? 1l: 0l</#if><#if property.propertyType == "Date">.getTime()</#if>);
+        }
+</#if>
+</#list>
+<#list entity.toOneRelations as toOne>
+<#if !toOne.fkProperties?has_content>
+
+        ${toOne.targetEntity.className} ${toOne.name} = entity.peak${toOne.name?cap_first}();
+        if(${toOne.name} != null) {
+            ${toOne.targetEntity.pkProperty.javaType} ${toOne.name}__targetKey = ${toOne.name}.get${toOne.targetEntity.pkProperty.propertyName?cap_first}();
+<#if !toOne.targetEntity.pkProperty.notNull>
+            if(${toOne.name}__targetKey != null) {
+                // TODO bind ${toOne.name}__targetKey
+            }
+<#else>
+            // TODO bind ${toOne.name}__targetKey
+</#if>
+        }
+</#if>
+</#list>
+    }
+    
+    public void copyTable(android.database.sqlite.SQLiteDatabase db) {        
+    	<#assign x=entity.properties?size>
+    	String insert = "INSERT INTO " + TABLENAME + " VALUES (<#list 1..x as i>?<#if i!=x>,</#if></#list>)";
+        android.database.sqlite.SQLiteStatement stmt = db.compileStatement(insert);
+
+        List<${entity.className}> entities = loadAll();
+
+        db.beginTransaction();
+        for (${entity.className} entity : entities) {
+            bindValues(stmt, entity);
+            stmt.execute();
+        }
+
+        stmt.close();
+
+        db.setTransactionSuccessful();
+        db.endTransaction();
     }
 
 <#if entity.active>

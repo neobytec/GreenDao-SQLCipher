@@ -70,6 +70,10 @@ public class DaoSession extends AbstractDaoSession {
 <#list schema.entities as entity>
         registerDao(${entity.className}.class, ${entity.classNameDao?uncap_first});
 </#list>        
+		
+		if (!db.isReadOnly()) {
+			db.execSQL("PRAGMA foreign_keys = ON;");
+		}
     }
     
     public void clear() {

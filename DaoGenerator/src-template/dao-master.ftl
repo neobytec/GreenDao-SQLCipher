@@ -47,8 +47,26 @@ public class DaoMaster extends AbstractDaoMaster {
 </#list>
     }
     
+    /** Creates underlying unencrypted database table using DAOs. */
+    public static void createAllTables(android.database.sqlite.SQLiteDatabase db, boolean ifNotExists) {
+<#list schema.entities as entity>
+<#if !entity.skipTableCreation>
+        ${entity.classNameDao}.createTable(db, ifNotExists);
+</#if>
+</#list>
+    }
+    
     /** Drops underlying database table using DAOs. */
     public static void dropAllTables(SQLiteDatabase db, boolean ifExists) {
+<#list schema.entities as entity>
+<#if !entity.skipTableCreation>
+        ${entity.classNameDao}.dropTable(db, ifExists);
+</#if>
+</#list>
+    }
+    
+    /** Drops underlying unencrypted database table using DAOs. */
+    public static void dropAllTables(android.database.sqlite.SQLiteDatabase db, boolean ifExists) {
 <#list schema.entities as entity>
 <#if !entity.skipTableCreation>
         ${entity.classNameDao}.dropTable(db, ifExists);
@@ -98,4 +116,17 @@ public class DaoMaster extends AbstractDaoMaster {
         return new DaoSession(db, type, daoConfigMap);
     }
     
+    public static void copyDatabase(SQLiteDatabase origin, android.database.sqlite.SQLiteDatabase destiny) {
+        DaoMaster daoMaster = new DaoMaster(origin);
+        DaoSession daoSession = daoMaster.newSession();
+        
+        if(!destiny.isReadOnly()) {
+			destiny.execSQL("PRAGMA foreign_keys = OFF;");
+		}        
+		<#list schema.entities as entity>
+		
+		${entity.classNameDao} ${entity.classNameDao?lower_case} = daoSession.get${entity.classNameDao}();
+		${entity.classNameDao?lower_case}.copyTable(destiny);
+		</#list>
+    }    
 }
