@@ -122,11 +122,11 @@ public class ${entity.classNameDao} extends AbstractDao<${entity.className}, ${e
 		
 		String tableSQL = "CREATE TABLE " + constraint + "'${entity.tableName}' (" + //
 <#list entity.propertiesColumns as property>
-                "'${property.columnName}' ${property.columnType}<#if property.constraints??> ${property.constraints} </#if><#if property.defaultValue?has_content> DEFAULT ${property.defaultValue}</#if><#if property_has_next>," + // ${property_index}: ${property.propertyName}<#else><#if entity.toOneRelations?has_content>," +
+                "'${property.columnName}' ${property.columnType}<#if property.constraints??> ${property.constraints} </#if><#if property.defaultValue?has_content> DEFAULT ${property.defaultValue}</#if><#if property_has_next>," + // ${property_index}: ${property.propertyName}<#else><#if entity.toOneRelations?has_content>," + // ${property_index}: ${property.propertyName}
                 <#list entity.toOneRelations as toOneRelation>
-				" FOREIGN KEY (<#list toOneRelation.fkProperties as fkProperty>'${fkProperty.columnName}'<#if fkProperty_has_next>,</#if></#list>) REFERENCES ${toOneRelation.targetEntity.tableName} ('${toOneRelation.targetEntity.pkProperty.columnName}')<#if toOneRelation_has_next>," +<#else>);";</#if>
+				" FOREIGN KEY (<#list toOneRelation.fkProperties as fkProperty>'${fkProperty.columnName}'<#if fkProperty_has_next>,</#if></#list>) REFERENCES ${toOneRelation.targetEntity.tableName} ('${toOneRelation.targetEntity.pkProperty.columnName}')<#if toOneRelation_has_next>," +<#else>);"; </#if>
 				</#list>
-                <#else>);";</#if></#if>
+                <#else>);"; // ${property_index}: ${property.propertyName}</#if></#if>
 </#list>
 		
 		listSQL.add(tableSQL);
